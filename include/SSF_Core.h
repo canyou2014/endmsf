@@ -39,7 +39,7 @@ public:
                   const Eigen::Matrix<double, 3, 1> & b_a, const double & L, const Eigen::Quaternion<double> & q_wv,
                   const Eigen::Matrix<double, N_STATE, N_STATE> & P, const Eigen::Matrix<double, 3, 1> & w_m,
                   const Eigen::Matrix<double, 3, 1> & a_m, const Eigen::Matrix<double, 3, 1> & g,
-                  const Eigen::Quaternion<double> & q_ci, const Eigen::Matrix<double, 3, 1> & p_ci);
+                  const Eigen::Quaternion<double> & q_ci, const Eigen::Matrix<double, 3, 1> & p_ci, double * mconfig);
 
   /// retreive all state information at time t. Used to build H, residual and noise matrix by update sensors
   //unsigned char getClosestState(State* timestate, ros::Time tstamp, double delay = 0.00);
@@ -96,30 +96,17 @@ private:
   {
     NO_UP, GOOD_UP, FUZZY_UP
   };
-  /*
-  ros::Publisher pubState_; ///< publishes all states of the filter
-  sensor_fusion_comm::DoubleArrayStamped msgState_;
-
-  ros::Publisher pubPose_; ///< publishes 6DoF pose output
-  geometry_msgs::PoseWithCovarianceStamped msgPose_;
-
-  ros::Publisher pubPoseCrtl_; ///< publishes 6DoF pose including velocity output
-  sensor_fusion_comm::ExtState msgPoseCtrl_;
-
-  ros::Publisher pubCorrect_; ///< publishes corrections for external state propagation
-  sensor_fusion_comm::ExtEkf msgCorrect_;
-
-  ros::Subscriber subState_; ///< subscriber to external state propagation
-  ros::Subscriber subImu_; ///< subscriber to IMU readings
-
-  sensor_fusion_comm::ExtEkf hl_state_buf_; ///< buffer to store external propagation data
-  */
-  // dynamic reconfigure
-  /*
-  ReconfigureServer *reconfServer_;
-  typedef boost::function<void(ssf_core::SSF_CoreConfig& config, uint32_t level)> CallbackType;
-  std::vector<CallbackType> callbacks_;
-*/
+    double d = 0.001;
+    ///Q
+    double noise_a = 0.022563 * d;
+    double noise_ba = 0.022563 * d;
+    double noise_w = 0.022563 * d;
+    double noise_bw = 0.022563 * d;
+    double vvc = 0.00001 * d;
+    double noise_scale = 0.004 * d;
+    double P_scale = 1;
+    ///R
+    double n_zp_ = 0.1;
   /// propagates the state with given dt
 
 
@@ -144,6 +131,7 @@ private:
 public:
   // some header implementations
   /// main update routine called by a given sensor
+  void get_result(Eigen::Matrix<double, 4, 1>& results);
   template<class H_type, class Res_type, class R_type>
     bool applyMeasurement(unsigned char idx_delaystate, const Eigen::MatrixBase<H_type>& H_delayed,
                           const Eigen::MatrixBase<Res_type> & res_delayed, const Eigen::MatrixBase<R_type>& R_delayed,
@@ -157,7 +145,7 @@ public:
         return false;
 
       // make sure we have correctly propagated cov until idx_delaystate
-      propPToIdx(idx_delaystate);
+      //propPToIdx(idx_delaystate);
 
       R_type S;
       Eigen::Matrix<double, N_STATE, R_type::RowsAtCompileTime> K;
@@ -183,7 +171,7 @@ public:
   bool applyCorrection(unsigned char idx_delaystate, const ErrorState & res_delayed, double fuzzythres = 0.1);
 
   /// propagate covariance to a given index in the ringbuffer
-  void propPToIdx(unsigned char idx);
+  //void propPToIdx(unsigned char idx);
 
   /// internal state propagation
   /**

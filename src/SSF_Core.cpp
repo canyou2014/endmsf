@@ -23,12 +23,24 @@ void SSF_Core::initialize(const Eigen::Matrix<double, 3, 1> & p, const Eigen::Ma
                           const Eigen::Quaternion<double> & q_wv, const Eigen::Matrix<double, N_STATE, N_STATE> & P,
                           const Eigen::Matrix<double, 3, 1> & w_m, const Eigen::Matrix<double, 3, 1> & a_m,
                           const Eigen::Matrix<double, 3, 1> & g, const Eigen::Quaternion<double> & q_ci,
-                          const Eigen::Matrix<double, 3, 1> & p_ci)
+                          const Eigen::Matrix<double, 3, 1> & p_ci, double * mconfig)
 {
   initialized_ = false;
   predictionMade_ = false;
   qvw_inittimer_ = 1;
 
+    d = *mconfig;
+    ///Q
+    noise_a = *(mconfig + 1) * d;
+    noise_ba = *(mconfig + 2) * d;
+    noise_w = *(mconfig + 3) * d;
+    noise_bw = *(mconfig + 4) * d;
+    vvc = *(mconfig + 5) * d;
+    noise_scale = *(mconfig + 6) * d;
+
+    P_scale = *(mconfig + 7);
+    ///R
+    n_zp_ = *(mconfig + 8);
   // init state buffer
   for (int i = 0; i < N_STATE_BUFFER; i++)
   {
@@ -85,6 +97,7 @@ void SSF_Core::initialize(const Eigen::Matrix<double, 3, 1> & p, const Eigen::Ma
     StateBuffer_[idx_P_].P_ = P;
 
 	// constants
+	StateBuffer_[idx_P_].P_ *= P_scale;
   g_ = g;
 
   // buffer for vision failure check
@@ -158,7 +171,7 @@ void SSF_Core::propagateState(const double dt)
   cur_state.q_wv_ = prev_state.q_wv_;
   cur_state.q_ci_ = prev_state.q_ci_;
   cur_state.p_ci_ = prev_state.p_ci_;
-  std::cout << "qwv.w" << cur_state.q_wv_.w() << std::endl;
+  //std::cout << "qwv.w" << cur_state.q_wv_.w() << std::endl;
 //  Eigen::Quaternion<double> dq;
   Eigen::Matrix<double, 3, 1> dv;
   ConstVector3 ew = cur_state.w_m_ - cur_state.b_w_;
@@ -196,6 +209,8 @@ void SSF_Core::propagateState(const double dt)
   cur_state.q_int_.normalize();
 
   dv = (cur_state.q_.toRotationMatrix() * ea + prev_state.q_.toRotationMatrix() * eaold) / 2;
+  std::cout << dv << std::endl;
+  std::cout << "#####" << std::endl;
   cur_state.v_ = prev_state.v_ + (dv - g_) * dt;
   cur_state.p_ = prev_state.p_ + ((cur_state.v_ + prev_state.v_) / 2 * dt);
   idx_state_++;
@@ -210,16 +225,16 @@ void SSF_Core::predictProcessCovariance(const double dt)
   typedef Eigen::Vector3d Vector3;
 
   // noises
-  ConstVector3 nav = Vector3::Constant(0.022563);
-  ConstVector3 nbav = Vector3::Constant(0.00008 /* * sqrt(dt) */);
+  ConstVector3 nav = Vector3::Constant(noise_a);
+  ConstVector3 nbav = Vector3::Constant(noise_ba /* * sqrt(dt) */);
 
-  ConstVector3 nwv = Vector3::Constant(0.004 /* / sqrt(dt) */);
-  ConstVector3 nbwv = Vector3::Constant(0.000003 /* * sqrt(dt) */);
-  const double vvc = 0.0000001;
+  ConstVector3 nwv = Vector3::Constant(noise_w /* / sqrt(dt) */);
+  ConstVector3 nbwv = Vector3::Constant(noise_bw /* * sqrt(dt) */);
+
   ConstVector3 nqwvv = Eigen::Vector3d::Constant(vvc);
   ConstVector3 nqciv = Eigen::Vector3d::Constant(vvc);
   ConstVector3 npicv = Eigen::Vector3d::Constant(vvc);
-  double noise_scale = 0.4;
+
   // bias corrected IMU readings
   ConstVector3 ew = StateBuffer_[idx_P_].w_m_ - StateBuffer_[idx_P_].b_w_;
   ConstVector3 ea = StateBuffer_[idx_P_].a_m_ - StateBuffer_[idx_P_].b_a_;
@@ -267,6 +282,13 @@ void SSF_Core::predictProcessCovariance(const double dt)
 }
 
 
+void SSF_Core::get_result(Eigen::Matrix<double, 4, 1>& results){
+    results << StateBuffer_[(unsigned char)(idx_state_-1)].p_(0,0), StateBuffer_[(unsigned char)(idx_state_-1)].p_(1,0),
+    StateBuffer_[(unsigned char)(idx_state_-1)].p_(2,0), StateBuffer_[(unsigned char)(idx_state_-1)].L_;
+
+
+}
+
 bool SSF_Core::getStateAtIdx(State* timestate, unsigned char idx)
 {
   if (!predictionMade_)
@@ -279,7 +301,7 @@ bool SSF_Core::getStateAtIdx(State* timestate, unsigned char idx)
 
   return true;
 }
-
+/*
 void SSF_Core::propPToIdx(unsigned char idx)
 {
   // propagate cov matrix until idx
@@ -287,7 +309,7 @@ void SSF_Core::propPToIdx(unsigned char idx)
 	  while (idx!=(unsigned char)(idx_P_-1))
 		  predictProcessCovariance(0.005);
 }
-
+*/
 bool SSF_Core::applyCorrection(unsigned char idx_delaystate, const ErrorState & res_delayed, double fuzzythres)
 {
   static int seq_m = 0;
@@ -376,9 +398,10 @@ bool SSF_Core::applyCorrection(unsigned char idx_delaystate, const ErrorState & 
   idx_P_ = idx_delaystate + 1;
 
   // propagate state matrix until now
+  /*
   while (idx_state_ != idx_time_)
     propagateState(StateBuffer_[idx_state_].time_ - StateBuffer_[(unsigned char)(idx_state_ - 1)].time_);
-
+  */
   checkForNumeric(&correction_[0], HLI_EKF_STATE_SIZE, "update");
 
   seq_m++;
@@ -392,8 +415,8 @@ void SSF_Core::measurementCallback(const Eigen::Vector3d& msg)
 	//					<< "type is: " << typeid(msg).name());
 
 	// init variables
-	unsigned char idx = idx_state_ ;
-	ssf_core::State state_old;
+	unsigned char idx = (unsigned char)(idx_state_-1) ;
+	ssf_core::State& state_old = StateBuffer_[idx];
 	//ros::Time time_old = msg->header.stamp;
 	Eigen::Matrix<double,N_MEAS,N_STATE>H_old;
 	Eigen::Matrix<double, N_MEAS, 1> r_old;
@@ -418,7 +441,6 @@ void SSF_Core::measurementCallback(const Eigen::Vector3d& msg)
 		R = (Eigen::Matrix<double, N_MEAS, 1>() << s_zp, s_zp, s_zp, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6).finished().asDiagonal();
 	}
     */
-    double n_zp_ = 0.01;
     const double s_zp = n_zp_ * n_zp_;
     R = (Eigen::Matrix<double, N_MEAS, 1>() << s_zp, s_zp, s_zp, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6).finished().asDiagonal();
 	// feedback for init case

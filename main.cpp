@@ -14,16 +14,33 @@ int main()
     SSF_Core sc;
 
 
-    std::ofstream scale_in, in;
+    std::ofstream in;
 	std::ifstream imuFile;
-	std::ifstream slamFile;
+	std::ifstream slamFile, configFile;
 /*
     imuFile.open( "imuData.txt" );
     slamFile.open( "slamPath.txt" );
 */
     imuFile.open( "imu_vm_data.csv" );
     slamFile.open( "ground_vm_data.csv" );
-    scale_in.open("predict_scale.txt", std::ios::trunc);
+    configFile.open( "configFile.txt" );
+    std::string config_line;
+    std::string cs;
+    double mconfig[9];
+    for(size_t i = 0; i< 9; ++ i){
+        getline(configFile, config_line);
+        std::stringstream config_ss(config_line);
+        getline(config_ss, cs, ':');
+        getline(config_ss, cs, ':');
+        mconfig[i] = std::stof(cs);
+
+    }
+    getline(configFile, config_line);
+    std::stringstream config_ss(config_line);
+    getline(config_ss, cs, ':');
+    getline(config_ss, cs, ':');
+    double LL = std::stof(cs);
+
     in.open("predict.txt", std::ios::trunc);
 
     std::cerr << "Please provide files for testing!" << std::endl
@@ -53,17 +70,26 @@ int main()
     initqwv.coeffs()(3) = 1.0;
     initqci.coeffs()(3) = 1.0;
     Eigen::Matrix<double, 25, 25> initP = Eigen::Matrix<double, 25, 25>::Zero();
-    double initL = 1.0;
+    double initL = LL;
     Eigen::Matrix<double, 3, 1> g(0.0, 0.0, 9.8001);
 	std::string lie;
 	getline(imuFile, lie);
 	getline(slamFile,lie);
 	getline(imuFile, lie);
+	char itemp,tmp;
+	double itime;
+	std::stringstream initi;
+    initi.str(lie);
+    initi
+		  >> itime >> tmp
+          >> w_m(0) >> tmp >> w_m(1) >> tmp >> w_m(2) >> tmp
+          >> a_m(0) >> tmp >> a_m(1) >> tmp >> a_m(2);
+
 	getline(slamFile,lie);
     std::stringstream inits;
     inits.str(lie);
-    char itemp;
-    double itime;
+
+
 
     inits >> itime >> itemp >> inipos(0) >> itemp >> inipos(1) >> itemp >> inipos(2)
 
@@ -73,9 +99,8 @@ int main()
          >> itemp >> b_a(0) >> itemp >> b_a(1) >> itemp >> b_a(2);
 
 
-    sc.initialize(inipos, inivel, initq, b_w, b_a, initL, initqwv, initP, w_m, a_m, g, initqci,initpci);
-     double r1 = 0.039, r2 = 0.3;  //0.041 0.1  >> and xiaoyu 0.45
-			// g
+    sc.initialize(inipos, inivel, initq, b_w, b_a, initL, initqwv, initP, w_m, a_m, g, initqci,initpci, mconfig);
+
     /*
 	Eigen::Matrix<double,28,1> P;
 	double d = 0.5;
@@ -126,7 +151,7 @@ int main()
 				break;
 		}
 
-
+        int a;
 
 		std::stringstream ss;
 		ss.str( line );
@@ -144,16 +169,21 @@ int main()
 
 
         sc.measurementCallback(p_c_v);
+        Eigen::Matrix<double, 4, 1> result;
+        sc.get_result(result);
 
 	    numSlamMeas++;
 	    q_c_v.normalize();
-
+        in << result(0, 0) << "\t"<< result(1, 0) << "\t"<< result(2, 0) << "\t"<< result(3, 0) << std::endl;
         getline(slamFile,line);
         getline(slamFile,line);
         getline(slamFile,line);
 
 
 	}
-	scale_in.close();
+	configFile.close();
+	imuFile.close();
+	slamFile.close();
+	in.close();
 	return 0;
 }
