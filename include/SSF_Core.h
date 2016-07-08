@@ -107,6 +107,7 @@ private:
     double P_scale = 1;
     ///R
     double n_zp_ = 0.1;
+    double n_zq_ = 0.1;
   /// propagates the state with given dt
 
 
@@ -181,7 +182,7 @@ public:
    * \sa{stateCallback}
    */
   void measurementCallback(const Eigen::Vector3d& msg);
-
+  void measurementCallback(const Eigen::Vector3d& msg, const Eigen::Quaterniond& msgq);
   void imuCallback(const Eigen::Matrix<double, 6, 1> & msg);
   /// registers dynamic reconfigure callbacks
   /*

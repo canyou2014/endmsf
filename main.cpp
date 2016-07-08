@@ -12,8 +12,8 @@ int main()
 {
 
     SSF_Core sc;
-
-
+    int scalecount;
+    double scale = 1;
     std::ofstream in;
 	std::ifstream imuFile;
 	std::ifstream slamFile, configFile;
@@ -21,13 +21,13 @@ int main()
     imuFile.open( "imuData.txt" );
     slamFile.open( "slamPath.txt" );
 */
-    imuFile.open( "imu_vm_data.csv" );
-    slamFile.open( "ground_vm_data.csv" );
+    imuFile.open( "imu_m_data.csv" );
+    slamFile.open( "ground_m_data.csv" );
     configFile.open( "configFile.txt" );
     std::string config_line;
     std::string cs;
-    double mconfig[9];
-    for(size_t i = 0; i< 9; ++ i){
+    double mconfig[10];
+    for(size_t i = 0; i< 10; ++ i){
         getline(configFile, config_line);
         std::stringstream config_ss(config_line);
         getline(config_ss, cs, ':');
@@ -116,7 +116,9 @@ int main()
 	0.0, 0.0, 0.0;									// q_w_v
 	P = 1*P.cwiseProduct(P);
 */
-
+    std::string sssimu;
+    for(int i = 0; i < 100; ++i)
+        getline( imuFile, sssimu );
 
 	unsigned numSlamMeas = 0;
 	for( std::string line; getline( slamFile, line );)
@@ -151,7 +153,7 @@ int main()
 				break;
 		}
 
-        int a;
+        int ad;
 
 		std::stringstream ss;
 		ss.str( line );
@@ -168,6 +170,13 @@ int main()
 	    	>> q_c_v.coeffs()(3) >> tmp >> q_c_v.coeffs()(0) >> tmp >> q_c_v.coeffs()(1) >> tmp >> q_c_v.coeffs()(2);
 
 
+        //double scale = (1.0 + (rand()%100 - 50)/800.0);
+        scalecount ++;
+        if(scalecount == 4000)
+            //scale += 1;
+
+        p_c_v *= scale;
+        //sc.measurementCallback(p_c_v, q_c_v);
         sc.measurementCallback(p_c_v);
         Eigen::Matrix<double, 4, 1> result;
         sc.get_result(result);

@@ -1,0 +1,10 @@
+Q_sclae:0.01
+noise_a:0.022563
+noise_ba:0.022563
+noise_w:0.022563
+noise_bw:0.022563
+%%vvc:0.000000001
+noise_scale:0.4
+0.00001P_scale:0.1
+n_zp_:0.06
+init_L:1.2
