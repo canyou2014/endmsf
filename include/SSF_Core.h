@@ -183,7 +183,7 @@ public:
    */
   void measurementCallback(const Eigen::Vector3d& msg);
   void measurementCallback(const Eigen::Vector3d& msg, const Eigen::Quaterniond& msgq);
-  void imuCallback(const Eigen::Matrix<double, 6, 1> & msg);
+  void imuCallback(const Eigen::Matrix<double, 6, 1> & msg, double dt);
   /// registers dynamic reconfigure callbacks
   /*
   template<class T>

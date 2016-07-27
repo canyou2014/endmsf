@@ -3,14 +3,32 @@
 #include "measurement.h"
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include <math.h>
 #include <boost/thread.hpp>
 using namespace ssf_core;
+typedef struct imuD{
+
+    double timestamp;
+    Eigen::Vector3d a_m;
+    Eigen::Vector3d omega_m;
+    imuD(){}
+    imuD(double t, Eigen::Vector3d& a, Eigen::Vector3d& w){
+        timestamp = t;
+        a_m = a;
+        omega_m = w;
+    }
+} imuData;
+struct slamData{
+    double timestamp;
+    Eigen::Vector3d p_c_v;
+    Eigen::Quaterniond q_c_v;
+};
 
 int main()
 
 {
-
+    std::vector<imuData> imuV;
     SSF_Core sc;
     int scalecount;
     double scale = 1;
@@ -121,6 +139,68 @@ int main()
         getline( imuFile, sssimu );
 
 	unsigned numSlamMeas = 0;
+	//getline( slamFile, line );
+	std::string imuLine;
+	double old_timu;
+    for( std::string line; getline( slamFile, line );)
+	{
+
+        std::stringstream ss;
+        ss.str(line);
+        Eigen::Vector3d p_c_v;
+		Eigen::Quaterniond q_c_v;
+		double slamTimeNs;
+		int newKf = 0;
+
+		char tmp;
+        ss
+            >> slamTimeNs >> tmp
+			>> p_c_v(0) >> tmp >> p_c_v(1) >> tmp >> p_c_v(2) >> tmp
+	    	>> q_c_v.coeffs()(3) >> tmp >> q_c_v.coeffs()(0) >> tmp >> q_c_v.coeffs()(1) >> tmp >> q_c_v.coeffs()(2);
+        p_c_v *= scale;
+        sc.measurementCallback(p_c_v);
+        Eigen::Matrix<double, 4, 1> result;
+        sc.get_result(result);
+
+
+        in << result(0, 0) << "\t"<< result(1, 0) << "\t"<< result(2, 0) << "\t"<< result(3, 0) << std::endl;
+        getline(slamFile,line);
+        getline(slamFile,line);
+        getline(slamFile,line);
+        double t_imu;
+        do{
+            if( !getline( imuFile, imuLine )){
+                std::cout << "imu data finished" << std::endl;
+            }
+
+
+            std::stringstream ss;
+            ss.str( imuLine );
+
+            Eigen::Vector3d a_m;
+            Eigen::Vector3d omega_m;
+
+            char tmp;
+
+            ss
+                >> t_imu >> tmp
+                >> omega_m(0) >> tmp >> omega_m(1) >> tmp >> omega_m(2) >> tmp
+                >> a_m(0) >> tmp >> a_m(1) >> tmp >> a_m(2);
+
+
+            double delta_t = 0.005;
+            if((t_imu - old_timu) < 10000000) delta_t = (t_imu - old_timu)/1000000000.0;
+            Eigen::Matrix<double ,6, 1> measurmt;
+            measurmt << omega_m(0),omega_m(1),omega_m(2),a_m(0),a_m(1),a_m(2);
+            sc.imuCallback(measurmt, delta_t);
+            old_timu = t_imu;
+            }while(t_imu <= slamTimeNs);
+
+    }
+
+
+
+	/*
 	for( std::string line; getline( slamFile, line );)
 	{
 
@@ -144,7 +224,11 @@ int main()
 		    	>> imuTimeNs >> tmp
 				>> omega_m(0) >> tmp >> omega_m(1) >> tmp >> omega_m(2) >> tmp
 	    		>> a_m(0) >> tmp >> a_m(1) >> tmp >> a_m(2);
+            imuData mimu(imuTimeNs, a_m, omega_m);
+            imuV.push_back(mimu);
 
+            omega_m(0) = 100;
+            Eigen::Matrix<double, 3, 1> ddd = a_m;
             Eigen::Matrix<double ,6, 1> measurmt;
             measurmt << omega_m(0),omega_m(1),omega_m(2),a_m(0),a_m(1),a_m(2);
             sc.imuCallback(measurmt);
@@ -190,6 +274,7 @@ int main()
 
 
 	}
+	*/
 	configFile.close();
 	imuFile.close();
 	slamFile.close();

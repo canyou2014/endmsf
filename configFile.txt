@@ -8,4 +8,4 @@ noise_scale:0.3
 0.00001P_scale:1
 n_zp_:0.2
 n_zp_:0.1
-init_L:2
+init_L:0.5

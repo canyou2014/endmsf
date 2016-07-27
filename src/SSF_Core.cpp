@@ -113,7 +113,7 @@ void SSF_Core::initialize(const Eigen::Matrix<double, 3, 1> & p, const Eigen::Ma
 }
 
 
-void SSF_Core::imuCallback(const Eigen::Matrix<double, 6, 1> & msg)
+void SSF_Core::imuCallback(const Eigen::Matrix<double, 6, 1> & msg, double dt)
 {
 
   if (!initialized_)
@@ -143,7 +143,7 @@ void SSF_Core::imuCallback(const Eigen::Matrix<double, 6, 1> & msg)
     }
   }
   */
-  double d_t = 0.005;
+  double d_t = dt;
   propagateState(d_t);
   predictProcessCovariance(d_t);
 
