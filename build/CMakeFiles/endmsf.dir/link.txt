@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC  -march=native -Wall -std=c++11 -fPIC   -shared -Wl,-soname,libendmsf.so -o ../lib/libendmsf.so CMakeFiles/endmsf.dir/src/measurement.cpp.o CMakeFiles/endmsf.dir/src/position_sensor.cpp.o CMakeFiles/endmsf.dir/src/SSF_Core.cpp.o CMakeFiles/endmsf.dir/src/state.cpp.o 
